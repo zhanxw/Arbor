@@ -2,7 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+<<<<<<< HEAD
 .DS_Store
 ## this is a temporary file
 data.Rdata
+=======
+>>>>>>> a09254c (Allow specifying x/y labels)
 .DS_Store

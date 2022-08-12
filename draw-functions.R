@@ -35,9 +35,8 @@ drawhm <- function (hm, x, y) {
 } 
 
 drawbar <- function (bar, x, y) {
-  ggplot(bar, aes_string("x", "y")) +
+  ggplot(bar, aes_string(x, y)) +
     geom_col(aes(fill = Group)) +
-    # geom_text(aes(label = Label, y = Value)) +
     coord_flip() +
     scale_fill_viridis_d(option="D", name="discrete\nvalue")+
     theme(axis.ticks.y = element_blank(), axis.text.y = element_blank()) +
@@ -57,7 +56,7 @@ draw1 <- function(data) {
   } else if (data$type == 'heatmap') {
     drawhm(data$data, x = data$x, y = data$y)
   } else if (data$type == 'barplot') {
-    drawbar(data$data)
+    drawbar(data$data, x = data$y, y = data$x)
   }
 }
 
