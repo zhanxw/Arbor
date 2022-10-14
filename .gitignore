@@ -3,3 +3,6 @@
 .RData
 .Ruserdata
 .DS_Store
+## this is a temporary file
+data.Rdata
+.DS_Store

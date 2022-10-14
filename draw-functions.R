@@ -13,7 +13,7 @@ drawtree <- function (tr) {
     color = "navyblue",
     size = 1,
     ladderize = TRUE
-  ) +
+  ) + 
     geom_tiplab(colour = "navyblue",
                 size = 2, offset=0.2,
                 align = T) +
@@ -34,8 +34,8 @@ drawhm <- function (hm, x, y) {
           ))
 } 
 
-drawbar <- function (bar) {
-  ggplot(bar, aes(Label, Pvalue)) +
+drawbar <- function (bar, x, y) {
+  ggplot(bar, aes_string("x", "y")) +
     geom_col(aes(fill = Group)) +
     # geom_text(aes(label = Label, y = Value)) +
     coord_flip() +
@@ -50,8 +50,6 @@ drawbar <- function (bar) {
       legend.box.background = element_rect(fill='transparent')
     )
 }
-
-## TODO: need to deal with names with flexibility
 
 draw1 <- function(data) {
   if (data$type == 'tree') {
