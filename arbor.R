@@ -71,9 +71,9 @@ ui <- dashboardPage(
                                box(title = 'Step 1: Tree', width = NULL,
                                    status = "primary", solidHeader = TRUE,
                                    collapsible = TRUE,
-                                   nwkFileUI("treefile"),
+                                   nwkFileUI("nwkfile"),
                                    hr(),
-                                   verbatimTextOutput("info.nwk")
+                                   htmlOutput("info.nwk")
                                )),
                         
                         column(width = 4,
@@ -143,7 +143,7 @@ server <- function(input, output, session) {
     # ## UI customization
     #   shinyjs::disable('hmfile')
     #   shinyjs::disable('barfile')
-    #   observeEvent(input$treefile, {
+    #   observeEvent(input$nwkfile, {
     #       enable('hmfile')
     #       enable('barfile')
     #   })
@@ -164,11 +164,11 @@ server <- function(input, output, session) {
     upload.button.hm <- reactiveValues(n=NULL)
     upload.button.bar <- reactiveValues(n=NULL)
 
-    # observeEvent(input$treefile, {
+    # observeEvent(input$nwkfile, {
     #     print("obs event: tree")
-    #     if (!is.null(input$treefile)) {
+    #     if (!is.null(input$nwkfile)) {
     #         v$l[[length(v$l) + 1]] <- list(type = 'tree',
-    #                                        data = read.tree(input$treefile$datapath))
+    #                                        data = read.tree(input$nwkfile$datapath))
     #         reset("treefile")
     #         cat("input updated by adding a tree", length(v$l), "done\n")
     #     }
@@ -183,7 +183,7 @@ server <- function(input, output, session) {
     #   head(ret.hm$data())
     # })
     output$info.nwk <- renderText({
-      paste("Uploaded tree has length: ", length(ret.nwk$data()))
+      HTML(to.summary.text(ret.nwk$data(), line.break = "<br/>"))
     })
     observeEvent(upload.button.nwk$n, {
       message("Upload button pressed!")
@@ -283,7 +283,7 @@ server <- function(input, output, session) {
     })
     output$downloadpng <- downloadHandler(
         filename = function() {
-            paste0(input$treefile, ".png")
+          format(Sys.time(), "Arbor-plot-%Y%m%d-%H%M%S.png")
         },
         content = function(file) {
             ggsave(file, plot = plotInput(), device = "png",
@@ -294,7 +294,7 @@ server <- function(input, output, session) {
     
     output$downloadjpg <- downloadHandler(
         filename = function() {
-            paste0(input$treefile, ".jpg")
+          format(Sys.time(), "Arbor-plot-%Y%m%d-%H%M%S.jpg")
         },
         content = function(file) {
             ggsave(file, plot = plotInput(), device = "jpg",
@@ -309,7 +309,7 @@ server <- function(input, output, session) {
     })
     output$downloadpdf <- downloadHandler(
         filename = function() {
-            paste0(input$treefile, ".pdf")
+          format(Sys.time(), "Arbor-plot-%Y%m%d-%H%M%S.pdf")
         },
         content = function(file) {
             ggsave(file, plot = plotInput(), device = "pdf", 

@@ -13,7 +13,7 @@ nwkFileUI <- function(id,
   ns <- NS(id)
   tagList(tabsetPanel(
     id = ns("nwk.upload.panel"),
-    # type = "hidden",
+    type = "hidden",
     
     tabPanel(
       ns("upload.panel"),
@@ -28,13 +28,13 @@ nwkFileUI <- function(id,
     ),
     tabPanel(
       ns("option.panel"),
-      #h3("Graph options"),
+      h3("File selected"),
       #uiOutput(ns("list.for.select.header")),
       #br(),
       #h3("Newick file options"),
       # checkboxInput(ns("heading"), "Has heading", value = TRUE),
       # TODO: show # of tree nodes, depths
-      hr(),
+      # hr(),
       actionButton(ns("back.button"), "Back"),
       actionButton(ns("upload.button"), "Upload")
     )
@@ -183,23 +183,77 @@ if (FALSE) {
   )
   
   server <- function(input, output, session) {
-    upload.button.hm <- reactiveValues(n=NULL)
+    upload.button.nwk <- reactiveValues(n=NULL)
     
-    ret.hm <- nwkFileServer("nwkFile", session,
-                       example.file.name = "tree.nwk",
-                       upload.button = upload.button.hm)
-    observeEvent(upload.button.hm$n, {
+    ret.nwk <- nwkFileServer("nwkFile", session,
+                             example.file.name = "tree.nwk",
+                             upload.button = upload.button.nwk)
+    observeEvent(upload.button.nwk$n, {
       message("Upload button pressed!")
       print("obs event: heatmap.plot")
-      message(is.null(ret.hm$data()))
-      if (!is.null(ret.hm$data())) {
-        print("ret.hm = ")
+      message(is.null(ret.nwk$data()))
+      if (!is.null(ret.nwk$data())) {
+        print("ret.nwk = ")
         
         print( list(type = 'tree',
-                    data = ret.hm$data()))
+                    data = ret.nwk$data()))
       }
     })  
   }
   
   shinyApp(ui, server)
+}
+
+## adapter from: summary.phylo()
+to.summary.text <- function(object, line.break = "\n") {
+  textCon = textConnection("ret", open = "w")
+  
+  nb.tip <- length(object$tip.label)
+  nb.node <- object$Nnode
+  cat(file = textCon, "  Number of tips:", nb.tip, line.break)
+  cat(file = textCon, "  Number of nodes:", nb.node, line.break)
+  if (is.null(object$edge.length)) 
+    cat(file = textCon, "  No branch lengths.", line.break)
+  else {
+    cat(file = textCon, "  Branch lengths:", line.break)
+    cat(file = textCon, "    mean:", mean(object$edge.length), line.break)
+    cat(file = textCon, "    variance:", var(object$edge.length), line.break)
+    cat(file = textCon, "    min:", min(object$edge.length), line.break)
+    cat(file = textCon, "    median:", median(object$edge.length), line.break)
+    cat(file = textCon, "    max:", max(object$edge.length), line.break)
+    # cat(file = textCon, "    distribution summary:\n")
+    # print(summary(object$edge.length)[-4])
+  }
+  if (is.null(object$root.edge)) 
+    cat(file = textCon, "  No root edge.", line.break)
+  else cat(file = textCon, "  Root edge:", object$root.edge, line.break)
+  if (nb.tip <= 10) {
+    cat(file = textCon, "  Tip labels: [", object$tip.label[1])
+    cat(file = textCon, paste(", ", object$tip.label[-1]), "]")
+    cat(file = textCon, sep = line.break)
+  }
+  else {
+    cat(file = textCon, "  First ten tip labels: [", object$tip.label[1])
+    cat(file = textCon, paste(", ", object$tip.label[2:10], "]")) 
+    cat(file = textCon, sep = line.break)
+  }
+  cat(file = textCon, line.break)
+  
+  if (is.null(object$node.label)) 
+    cat(file = textCon, "  No node labels.", line.break)
+  else {
+    if (nb.node <= 10) {
+      cat(file = textCon, "  Node labels: [")
+      cat(file = textCon, paste(", ", object$node.label, "]"))
+      cat(file = textCon, line.break)
+    }
+    else {
+      cat(file = textCon, "  First ten node labels: [")
+      cat(file = textCon, paste(", ", object$node.label[1:10], "]"), 
+          sep = line.break)
+    }
+  }  
+  
+  close(textCon)
+  ret
 }
