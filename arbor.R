@@ -10,15 +10,18 @@ library(shinydashboardPlus)
 library(shinyjs)
 library(purrr)
 library(BiocManager)
-options(repos = BiocManager::repositories())
 
-#devtools::install_github("YuLab-SMU/ggtree")
+if (FALSE) {
+  # install dev version of ggtree if needed
+  options(repos = BiocManager::repositories())
+  devtools::install_github("YuLab-SMU/ggtree")
+}
+
 source('draw-functions.R') 
+source('nwkFile-module.R')
+source('csvFile-module.R')
 
-select.header.labels = c("X-axis", "Y-axis")
-select.header.values = c("x", "y")
-example.file.name = "example.csv"
-
+debug <- TRUE
 debug <- FALSE
 if (debug) {
     library(reactlog)
@@ -30,169 +33,6 @@ if (FALSE) {
     library(reactlog)
     reactlog_disable()
 }
-
-# Module UI function
-csvFileUI <- function(id,
-                      label = "Upload a CSV file") {
-    # `NS(id)` returns a namespace function, which was save as `ns` and will
-    # invoke later.
-    ns <- NS(id)
-    tagList(tabsetPanel(
-        id = ns("csv.upload.panel"),
-        type = "hidden",
-        
-        tabPanel(
-            ns("upload.panel"),
-            fileInput(ns("file"), label),
-            actionLink(ns("load.example"), "Use example"),
-            br(),
-            downloadLink(ns("download.example"), "Download example"),
-            #hr(),
-            #actionButton(ns("next.button"), "Next")
-        ),
-        tabPanel(
-            ns("option.panel"),
-            h3("Graph options"),
-            uiOutput(ns("list.for.select.header")),
-            br(),
-            h3("CSV file options"),
-            checkboxInput(ns("heading"), "Has heading", value = TRUE),
-            hr(),
-            actionButton(ns("back.button"), "Back"),
-            actionButton(ns("upload.button"), "Upload")
-        )
-    ))
-}
-
-# Server ------------------------------------------------------------------
-# the reactive flow
-# upload.file, csv read options -> d -> selectInput components -> v
-#
-# Module server function
-csvFileServer <- function(id,
-                          parent,
-                          select.header.labels = c("X-axis", "Y-axis"),
-                          select.header.values = c("x", "y"),
-                          example.file.name = "example.csv",
-                          upload.button = NULL) {
-    moduleServer(id,
-                 ## Below is the module function
-                 function(input, output, session) {
-                     ns <- session$ns
-                     useExample <- reactiveVal(FALSE)
-                     observeEvent(input$load.example, {
-                         cat("useExample set to TRUE\n")
-                         useExample(TRUE)
-                         updateTabsetPanel(
-                             session = parent,
-                             inputId = ns("csv.upload.panel"),
-                             selected = ns("option.panel")
-                         )
-                     })
-                     n.upload.button.pressed <- reactiveVal(0)
-                     
-                     d <- reactive({
-                         cat("d start\n")
-                         if (useExample()) {
-                             read.csv(example.file.name, header = input$heading)
-                         } else {
-                             req(input$file)
-                             print(input$file)
-                             read.csv(input$file$datapath, header = input$heading)
-                         }
-                     })
-                     v <- reactive({
-                         cat("v <- reactive()\n")
-                         if (useExample()) {
-                             cat("useExample = TRUE\n")
-                             ret <- select.header.values
-                         } else {
-                             cat("useExample = FALSE\n")
-                             ret <-
-                                 map_chr(select.header.labels, ~ input[[(.x)]] %||% "")
-                         }
-                         cat("v = ")
-                         print(ret)
-                         cat("\n")
-                         ret
-                     })
-                     observeEvent(input$file, {
-                         ns <- session$ns
-                         cat("useExample set to FALSE\n")
-                         useExample(FALSE)
-                         
-                         updateTabsetPanel(
-                             session = parent,
-                             inputId = ns("csv.upload.panel"),
-                             selected = ns("option.panel")
-                         )
-                         n = colnames(d())
-                         map(
-                             select.header.labels,
-                             ~ updateSelectInput(
-                                 session = parent,
-                                 inputId = ns(.x),
-                                 choices = n
-                             )
-                         )
-                     })
-                     observeEvent(input$back.button, {
-                         # back button clicked
-                         updateTabsetPanel(
-                             session = parent,
-                             inputId = ns("csv.upload.panel"),
-                             selected = ns("upload.panel")
-                         )
-                     })
-                     observeEvent(input$upload.button, {
-                         n.upload.button.pressed(n.upload.button.pressed() + 1)
-                         if (!is.null(upload.button)) {
-                             upload.button$n <- input$upload.button
-                         }
-                         message("rv upload.button pressed", upload.button$n)
-                         message("button inside module pressed")
-                     })
-                     output$list.for.select.header = renderUI({
-                         # create selectInput components
-                         cat('generate selectInput components\n')
-                         header = colnames(d())
-                         if (useExample()) {
-                             cat("use example\n")
-                             map2(
-                                 select.header.labels,
-                                 select.header.values,
-                                 ~ selectInput(ns(.x), .x,
-                                               choices = header,
-                                               selected = .y)
-                             )
-                         } else {
-                             cat("not use example\n")
-                             map(select.header.labels,
-                                 ~ selectInput(ns(.x), .x,
-                                               choices = header))
-                         }
-                     })
-                     
-                     output$download.example <- downloadHandler(
-                         filename = function() {
-                             return(example.file.name)
-                         },
-                         content = function(file) {
-                             file.copy(example.file.name, file)
-                         }
-                     )
-                     
-                     # Return the reactive that yields the data frame
-                     ret = list(
-                         data = d,
-                         choices = select.header.labels,
-                         values = v
-                     )
-                     print(ret)
-                     return(ret)
-                 })
-}
-
 
 ui <- dashboardPage(
     dashboardHeader(title = "Tree Data Visualization"),
@@ -217,13 +57,12 @@ ui <- dashboardPage(
         ),
         tabItems(
             tabItem(tabName = "introduction",
-                    'Tree data visualization is a R shiny app for 
-                    viewing tree data and its plots by simply uploading 
+                    p('Abor is an R shiny app for 
+                    viewing tree data and their associated data properties. Users can simply upload 
                     tree data and csv columns in Data Upload, and then 
                     the plots would be shown in Plots. Only .nwk is accepted 
                     for tree data upload. Only csv is accepted for both 
-                    heat map and bar plot data upload. Users are also 
-                    welcomed to download the plots if needed.'
+                    heat map and bar plot data upload. Users can download the plots in multiple file formats.')
             ),
             
             tabItem(tabName = "upload",
@@ -231,11 +70,10 @@ ui <- dashboardPage(
                         column(width = 4,
                                box(title = 'Step 1: Tree', width = NULL,
                                    status = "primary", solidHeader = TRUE,
-                                   fileInput("treefile",
-                                             "Tree", 
-                                             buttonLabel = "Upload",
-                                             accept = ".nwk",
-                                             multiple = FALSE)
+                                   collapsible = TRUE,
+                                   nwkFileUI("treefile"),
+                                   hr(),
+                                   verbatimTextOutput("info.nwk")
                                )),
                         
                         column(width = 4,
@@ -321,25 +159,47 @@ server <- function(input, output, session) {
                 nTree, nHeatmap, nBar)
     })
     
-    observeEvent(input$treefile, {
-        print("obs event: tree")
-        if (!is.null(input$treefile)) {
-            v$l[[length(v$l) + 1]] <- list(type = 'tree',
-                                           data = read.tree(input$treefile$datapath))
-            reset("treefile")
-            cat("input updated by adding a tree", length(v$l), "done\n")
-        }
-    })
-    
     # Rearrangement ------------------------------------------------------------
+    upload.button.nwk <- reactiveValues(n=NULL)
     upload.button.hm <- reactiveValues(n=NULL)
     upload.button.bar <- reactiveValues(n=NULL)
+
+    # observeEvent(input$treefile, {
+    #     print("obs event: tree")
+    #     if (!is.null(input$treefile)) {
+    #         v$l[[length(v$l) + 1]] <- list(type = 'tree',
+    #                                        data = read.tree(input$treefile$datapath))
+    #         reset("treefile")
+    #         cat("input updated by adding a tree", length(v$l), "done\n")
+    #     }
+    # })
+    ret.nwk <- nwkFileServer(
+      "nwkfile",
+      session,
+      example.file.name = "tree.nwk",
+      upload.button = upload.button.nwk
+    )
+    # output$table.hm <- renderTable({
+    #   head(ret.hm$data())
+    # })
+    output$info.nwk <- renderText({
+      paste("Uploaded tree has length: ", length(ret.nwk$data()))
+    })
+    observeEvent(upload.button.nwk$n, {
+      message("Upload button pressed!")
+      print("obs event: nwk")
+      message(is.null(ret.nwk$data()))
+      if (!is.null(ret.nwk$data())) {
+        v$l[[length(v$l) + 1]] <- list(type = 'tree',
+                                       data = ret.nwk$data())
+      }
+    })
     
     ret.hm <- csvFileServer(
         "hmfile",
         session,
-        select.header.labels = select.header.labels,
-        select.header.values = select.header.values,
+        select.header.labels = c("X-axis", "Y-axis"),
+        select.header.values = c("x", "y"),
         example.file.name = "heatmap.csv",
         upload.button = upload.button.hm
     )
@@ -355,21 +215,22 @@ server <- function(input, output, session) {
     observeEvent(upload.button.hm$n, {
         message("Upload button pressed!")
         print("obs event: heatmap.plot")
+        message(is.null(ret.hm$data()))
         if (!is.null(ret.hm$data())) {
-          # print("ret.hm", ret.hm)
+            # print("ret.hm", ret.hm)
             v$l[[length(v$l) + 1]] <- list(type = 'heatmap',
                                            data = ret.hm$data(),
                                            x = ret.hm$values()[1],
                                            y = ret.hm$values()[2])
-            reset("heatmap")
+          # reset("heatmap"): reset only works for traditional Shiny input widget
         }
     })
     
     ret.bar <- csvFileServer(
         "barfile",
         session,
-        select.header.labels = select.header.labels,
-        select.header.values = select.header.values,
+        select.header.labels = c("X-axis", "Y-axis (Tree Nodes)"),
+        select.header.values = c("Group", "Label"),
         example.file.name = "bar.csv",
         upload.button = upload.button.bar
     )
@@ -385,22 +246,24 @@ server <- function(input, output, session) {
     observeEvent(upload.button.bar$n, {
         message("Upload button pressed!")
         print("obs event: barplot")
+        message("plotWidth = ", plotWidth())
         if (!is.null(ret.bar$data())) {
             v$l[[length(v$l) + 1]] <- list(type = 'barplot',
                                            data = ret.bar$data(),
                                            x = ret.bar$values()[1],
                                            y = ret.bar$values()[2])
-            reset("barplot")
+            # reset("barplot")
         }
     })
     
     # Show figure -------------------------------------------------------------
     plotWidth <- reactive({
         if (is.null(input$plot.width)) {
-            800 * max(1, length(v$l))
+            ret = 800 * max(1, length(v$l))
         } else {
-            input$plot.width
+            ret = input$plot.width
         }
+      message("plotWidth = ", ret)
     })
     plotInput <- reactive({
         draw(v$l)
